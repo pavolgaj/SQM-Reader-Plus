@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# version 0.1.2 29-12-2021
+# version 0.1.0 27-01-2022
 import sys
 import os
 import tkinter as tk
@@ -7,13 +7,16 @@ import tkinter.ttk as ttk
 from tkinter import messagebox
 from tkinter import filedialog
 import time
+import datetime
 import asyncio
 import threading
 import math
 import serial
 import serial.tools.list_ports
+
 import matplotlib
 matplotlib.use('TkAgg')
+from matplotlib import dates
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as mpl
@@ -34,10 +37,10 @@ def read1(block=True):
         Button2.update()
         Button3.update()
     t0=time.time()
-    #com.write(b'rx\r')
+    com.write(b'rx\r')
     time.sleep(5)  #wait for completing measurements
-    #ans=com.readline().decode().strip()
-    ans="r,-09.42m,0000005915Hz,0000000000c,0000000.000s, 027.0C"
+    ans=com.readline().decode().strip()
+    #ans="r,-09.42m,0000005915Hz,0000000000c,0000000.000s, 027.0C"   #for testing...
     data=ans.split(',')     #r,-09.42m,0000005915Hz,0000000000c,0000000.000s, 027.0C -> r,mpsas,freq,period,per,temp
     #t=time.strftime('%Y_%m_%d %H:%M:%S',time.localtime(t0))
     t=time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(t0))      #for better import to excel
@@ -107,9 +110,9 @@ def reading():
 def init():
     '''init serial COM port'''
     global com
-    #com=serial.Serial(portVar.get())
+    com=serial.Serial(portVar.get())
     time.sleep(1)
-    #com.baudrate=baudVar.get()
+    com.baudrate=baudVar.get()
     Button2.configure(state=tk.NORMAL)
     Button3.configure(state=tk.NORMAL)
     Button6.configure(state=tk.DISABLED)
@@ -140,6 +143,7 @@ def close():
     f.write(str(saveVar.get())+'\n')
     f.write(str(dtVar.get())+'\n')
     f.write(str(midnightVar.get())+'\n')
+    f.write(str(liveVar.get())+'\n')
     f.close()
     root.destroy()
     root=None
@@ -160,7 +164,13 @@ def plot():
     '''plot SQM data'''
     figSQM.clf()
     ax=figSQM.add_subplot(111)
-    ax.plot(sqm,'bo-')
+    
+    dtime=[datetime.datetime.strptime(x,'%Y-%m-%d %H:%M:%S') for x in dt] 
+    fds=dates.date2num(dtime)
+    hfmt=dates.DateFormatter('%H:%M')
+    ax.plot(fds,sqm,'bo-')
+    ax.xaxis.set_major_locator(dates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(hfmt)
     ax.set_ylabel('MPSAS')
     figSQM.tight_layout()
     canvas2.draw()
@@ -195,8 +205,10 @@ def liveCh():
 
 def save():
     '''save image to file'''
-    name=filedialog.asksaveasfilename(parent=root,filetypes=[('PNG file','.png'),('All images','.eps .ps .jpeg .jpg .pdf .png .svg .tif .tiff'),('All files','*')],title='Save image')
-    #eps/ps, jpeg/jpg, pdf, png, svg, tif/tiff
+    name=filedialog.asksaveasfilename(parent=root,filetypes=[('PNG file','.png'),
+    ('JPG file','.jpg .jpeg'),('PS file','.eps .ps'),('PDF file','.pdf'),('SVG file','.svg'),('TIFF file','.tif .tiff'),
+    ('All images','.eps .ps .jpeg .jpg .pdf .png .svg .tif .tiff'),('All files','*')],title='Save image',defaultextension='.png')
+    #todo nazvy...
     
     if len(name)>0:
         figSQM.savefig(name,dpi=300)
@@ -228,6 +240,7 @@ mpsasVar=tk.DoubleVar(root)
 nelmVar=tk.DoubleVar(root)
 tempVar=tk.DoubleVar(root)
 timeVar=tk.StringVar(root)
+liveVar=tk.BooleanVar(root)
 
 main=tk.Frame(root)
 main.place(x=5, y=5, height=340, width=390)
@@ -373,7 +386,10 @@ if os.path.isfile('sqm_config.txt'):
     pathVar.set(lines[2].strip())
     saveVar.set(lines[3].strip()=='True')
     dtVar.set(float(lines[4]))
-    if len(lines)>5: midnightVar.set(lines[5].strip()=='True')
+    if len(lines)>5: 
+        midnightVar.set(lines[5].strip()=='True')
+        if len(lines)>6: liveVar.set(lines[6].strip()=='True')
+        else: liveVar.set(False)       #old version of config file
     else: midnightVar.set(True)       #old version of config file
 else:
     saveVar.set(0)
@@ -390,7 +406,6 @@ Button5.configure(command=show)
 plotF=tk.Frame(root)
 plotF.place(x=405, y=5, height=340, width=690)
 
-liveVar=tk.BooleanVar(root)
 Checkbutton2 = tk.Checkbutton(plotF)
 Checkbutton2.place(relx=0.02, rely=0.04, relheight=0.07, relwidth=0.18)
 Checkbutton2.configure(justify=tk.LEFT)
