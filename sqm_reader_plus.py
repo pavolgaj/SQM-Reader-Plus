@@ -12,6 +12,11 @@ import threading
 import math
 import serial
 import serial.tools.list_ports
+import matplotlib
+matplotlib.use('TkAgg')
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as mpl
 
 def mpsas2nelm(mpsas):
     if mpsas>18.3: nelm=7.93-5*math.log10(math.pow(10,4.316-(mpsas/5.))+1)    #Scotopic vision
@@ -20,6 +25,7 @@ def mpsas2nelm(mpsas):
 
 
 def read1(block=True):
+    global dt,sqm
     '''read one data'''
     if block:  #block buttons for 1 reading
         Button1.configure(state=tk.DISABLED)
@@ -28,9 +34,10 @@ def read1(block=True):
         Button2.update()
         Button3.update()
     t0=time.time()
-    com.write(b'rx\r')
+    #com.write(b'rx\r')
     time.sleep(5)  #wait for completing measurements
-    ans=com.readline().decode().strip()
+    #ans=com.readline().decode().strip()
+    ans="r,-09.42m,0000005915Hz,0000000000c,0000000.000s, 027.0C"
     data=ans.split(',')     #r,-09.42m,0000005915Hz,0000000000c,0000000.000s, 027.0C -> r,mpsas,freq,period,per,temp
     #t=time.strftime('%Y_%m_%d %H:%M:%S',time.localtime(t0))
     t=time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(t0))      #for better import to excel
@@ -58,6 +65,12 @@ def read1(block=True):
         Button1.configure(state=tk.NORMAL)
         Button2.configure(state=tk.NORMAL)
         Button3.configure(state=tk.NORMAL)
+        
+    if liveVar.get(): 
+        dt.append(t)
+        sqm.append(mpsas)
+        plot()
+        
     return t0
 
 async def read_loop():
@@ -94,11 +107,12 @@ def reading():
 def init():
     '''init serial COM port'''
     global com
-    com=serial.Serial(portVar.get())
+    #com=serial.Serial(portVar.get())
     time.sleep(1)
-    com.baudrate=baudVar.get()
+    #com.baudrate=baudVar.get()
     Button2.configure(state=tk.NORMAL)
     Button3.configure(state=tk.NORMAL)
+    Button6.configure(state=tk.DISABLED)
 
 def select_path(event):
     path=os.getcwd().replace('\\','/')
@@ -131,6 +145,7 @@ def close():
     root=None
 
 def show():
+    '''expand window and show plot part'''
     global expanded
     if expanded:
         Button5.configure(text='>>')
@@ -139,8 +154,55 @@ def show():
         Button5.configure(text='<<')
         root.geometry(size1)
     expanded=(not expanded)
+ 
+ 
+def plot():
+    '''plot SQM data'''
+    figSQM.clf()
+    ax=figSQM.add_subplot(111)
+    ax.plot(sqm,'bo-')
+    ax.set_ylabel('MPSAS')
+    figSQM.tight_layout()
+    canvas2.draw()
 
+def load():
+    '''load SQM data from file and plot'''
+    global dt, sqm
+    
+    name=filedialog.askopenfilename(parent=root,filetypes=[('Data files','*.dat'),('Text files','*.txt'),('All files','*.*')],title='Load SQM data')
+    
+    if len(name)>0:
+        f=open(name,'r')
+        for l in f:
+            try: float(l[0])
+            except ValueError: continue
+            
+            dat=l.strip().split()
+            dt.append(dat[0]+' '+dat[1])
+            sqm.append(float(dat[2]))
+            
+        plot()
+        dt=[]
+        sqm=[]
+    
+def liveCh():
+    '''turn off live plot'''
+    global dt, sqm
+    if not liveVar.get(): 
+        dt=[]
+        sqm=[]
+        #zmazat graf?
 
+def save():
+    '''save image to file'''
+    name=filedialog.asksaveasfilename(parent=root,filetypes=[('PNG file','.png'),('All images','.eps .ps .jpeg .jpg .pdf .png .svg .tif .tiff'),('All files','*')],title='Save image')
+    #eps/ps, jpeg/jpg, pdf, png, svg, tif/tiff
+    
+    if len(name)>0:
+        figSQM.savefig(name,dpi=300)
+
+dt=[]
+sqm=[]
 
 root=tk.Tk()
 size0='400x350'
@@ -323,29 +385,39 @@ expanded=False
 Button5=tk.Button(main)
 Button5.place(relx=0.8, rely=0.11, height=29, width=59)
 Button5.configure(text='>>')
-Button5.configure(width=59)
 Button5.configure(command=show)
 
-plot=tk.Frame(root)
-plot.place(x=405, y=5, height=340, width=690)
+plotF=tk.Frame(root)
+plotF.place(x=405, y=5, height=340, width=690)
 
-Checkbutton2 = tk.Checkbutton(plot)
-Checkbutton2.place(relx=0.02, rely=0.03, relheight=0.07, relwidth=0.18)
+liveVar=tk.BooleanVar(root)
+Checkbutton2 = tk.Checkbutton(plotF)
+Checkbutton2.place(relx=0.02, rely=0.04, relheight=0.07, relwidth=0.18)
 Checkbutton2.configure(justify=tk.LEFT)
 Checkbutton2.configure(text='Live plot')
-#Checkbutton2.configure(variable=sqm_reader_plus_support.che40)
-Checkbutton2.configure(width=103)
+Checkbutton2.configure(variable=liveVar)
+Checkbutton2.configure(anchor='w')
+Checkbutton2.configure(command=liveCh)
 
-Button6 = tk.Button(plot)
-Button6.place(relx=0.24, rely=0.03, height=29, width=85)
+Button6 = tk.Button(plotF)
+Button6.place(relx=0.2, rely=0.03, height=29, width=85)
 Button6.configure(text='From file')
+Button6.configure(command=load)
 
-Button7 = tk.Button(plot)
-Button7.place(relx=0.43, rely=0.03, height=29, width=103)
+Button7 = tk.Button(plotF)
+Button7.place(relx=0.35, rely=0.03, height=29, width=103)
 Button7.configure(text='Save image')
+Button7.configure(command=save)
 
-Canvas1 = tk.Canvas(plot)
-Canvas1.place(relx=0.02, rely=0.14, relheight=0.84, relwidth=0.98)
-Canvas1.configure(width=561)
+
+frame2=tk.Frame(plotF)
+frame2.place(relx=0.02, rely=0.14, relheight=0.84, relwidth=0.96)
+frame2.configure(width=555)
+frame2.configure(borderwidth="2")
+frame2.configure(relief=tk.RIDGE)
+
+figSQM=Figure()
+canvas2=FigureCanvasTkAgg(figSQM,frame2)
+canvas2.get_tk_widget().pack(side='top',fill='both',expand=1)
 
 tk.mainloop()
