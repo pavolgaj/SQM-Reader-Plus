@@ -199,7 +199,7 @@ def load():
     '''load SQM data from file and plot'''
     global dt, sqm1, sqm2, sqm3
     
-    name=filedialog.askopenfilename(parent=root,filetypes=[('Data files','*.dat'),('Text files','*.txt'),('All files','*.*')],title='Load SQM data')
+    name=filedialog.askopenfilename(parent=root,filetypes=[('Data files','*.dat'),('Text files','*.txt'),('All files','*.*')],title='Load SQM data',initialdir=pathVar.get())
     
     if len(name)>0:
         dt=[]
@@ -232,8 +232,7 @@ def save():
     '''save image to file'''
     name=filedialog.asksaveasfilename(parent=root,filetypes=[('PNG file','.png'),
     ('JPG file','.jpg .jpeg'),('EPS/PS file','.eps .ps'),('PDF file','.pdf'),('SVG file','.svg'),('TIFF file','.tif .tiff'),
-    ('All images','.eps .ps .jpeg .jpg .pdf .png .svg .tif .tiff'),('All files','*')],title='Save image',defaultextension='.png')
-    #todo nazvy...
+    ('All images','.eps .ps .jpeg .jpg .pdf .png .svg .tif .tiff'),('All files','*')],title='Save image',defaultextension='.png',initialdir=pathVar.get())
     
     if len(name)>0:
         figSQM.savefig(name,dpi=300)
