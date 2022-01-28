@@ -28,7 +28,7 @@ def mpsas2nelm(mpsas):
 
 
 def read1(block=True):
-    global dt,sqm
+    global dt,sqm1, sqm2, sqm3
     '''read one data'''
     if block:  #block buttons for 1 reading
         Button1.configure(state=tk.DISABLED)
@@ -72,7 +72,9 @@ def read1(block=True):
         
     if liveVar.get(): 
         dt.append(t)
-        sqm.append(mpsas)
+        sqm1.append(mpsas)
+        sqm2.append(nelm)
+        sqm3.append(temp)
         plot()
         
     return t0
@@ -111,12 +113,17 @@ def reading():
 def init():
     '''init serial COM port'''
     global com
+    global dt, sqm1, sqm2, sqm3
     com=serial.Serial(portVar.get())
     time.sleep(1)
     com.baudrate=baudVar.get()
     Button2.configure(state=tk.NORMAL)
     Button3.configure(state=tk.NORMAL)
     Button6.configure(state=tk.DISABLED)
+    dt=[]
+    sqm1=[]
+    sqm2=[]
+    sqm3=[]
 
 def select_path(event):
     path=os.getcwd().replace('\\','/')
@@ -163,26 +170,42 @@ def show():
  
 def plot():
     '''plot SQM data'''
+    if len(dt)==0: return
+
     figSQM.clf()
     ax=figSQM.add_subplot(111)
+    figSQM.tight_layout()
     
     dtime=[datetime.datetime.strptime(x,'%Y-%m-%d %H:%M:%S') for x in dt] 
     fds=dates.date2num(dtime)
     hfmt=dates.DateFormatter('%H:%M')
-    ax.plot(fds,sqm,'bo-')
+    if typeVar.get()==0:
+        ax.plot(fds,sqm1,'bo-')
+        ax.set_ylabel('MPSAS')
+        ax.invert_yaxis()
+    elif typeVar.get()==1:
+        ax.plot(fds,sqm2,'bo-')
+        ax.set_ylabel('NELM')
+        ax.invert_yaxis()
+    elif typeVar.get()==2:
+        ax.plot(fds,sqm3,'bo-')
+        ax.set_ylabel('TEMP')
     ax.xaxis.set_major_locator(dates.AutoDateLocator())
-    ax.xaxis.set_major_formatter(hfmt)
-    ax.set_ylabel('MPSAS')
+    ax.xaxis.set_major_formatter(hfmt)    
     figSQM.tight_layout()
     canvas2.draw()
 
 def load():
     '''load SQM data from file and plot'''
-    global dt, sqm
+    global dt, sqm1, sqm2, sqm3
     
     name=filedialog.askopenfilename(parent=root,filetypes=[('Data files','*.dat'),('Text files','*.txt'),('All files','*.*')],title='Load SQM data')
     
     if len(name)>0:
+        dt=[]
+        sqm1=[]
+        sqm2=[]
+        sqm3=[]
         f=open(name,'r')
         for l in f:
             try: float(l[0])
@@ -190,24 +213,25 @@ def load():
             
             dat=l.strip().split()
             dt.append(dat[0]+' '+dat[1])
-            sqm.append(float(dat[2]))
+            sqm1.append(float(dat[2]))
+            sqm2.append(float(dat[3]))
+            sqm3.append(float(dat[4]))
             
         plot()
-        dt=[]
-        sqm=[]
     
 def liveCh():
     '''turn off live plot'''
-    global dt, sqm
+    global dt, sqm1, sqm2, sqm3
     if not liveVar.get(): 
         dt=[]
-        sqm=[]
-        #zmazat graf?
+        sqm1=[]
+        sqm2=[]
+        sqm3=[]
 
 def save():
     '''save image to file'''
     name=filedialog.asksaveasfilename(parent=root,filetypes=[('PNG file','.png'),
-    ('JPG file','.jpg .jpeg'),('PS file','.eps .ps'),('PDF file','.pdf'),('SVG file','.svg'),('TIFF file','.tif .tiff'),
+    ('JPG file','.jpg .jpeg'),('EPS/PS file','.eps .ps'),('PDF file','.pdf'),('SVG file','.svg'),('TIFF file','.tif .tiff'),
     ('All images','.eps .ps .jpeg .jpg .pdf .png .svg .tif .tiff'),('All files','*')],title='Save image',defaultextension='.png')
     #todo nazvy...
     
@@ -215,7 +239,9 @@ def save():
         figSQM.savefig(name,dpi=300)
 
 dt=[]
-sqm=[]
+sqm1=[]
+sqm2=[]
+sqm3=[]
 
 root=tk.Tk()
 size0='400x350'
@@ -242,7 +268,10 @@ nelmVar=tk.DoubleVar(root)
 tempVar=tk.DoubleVar(root)
 timeVar=tk.StringVar(root)
 liveVar=tk.BooleanVar(root)
+typeVar=tk.IntVar(root)
 pathVar.set('./')
+typeVar.set(0)
+
 
 main=tk.Frame(root)
 main.place(x=5, y=5, height=340, width=390)
@@ -417,13 +446,38 @@ Checkbutton2.configure(variable=liveVar)
 Checkbutton2.configure(anchor='w')
 Checkbutton2.configure(command=liveCh)
 
+Radiobutton3=tk.Radiobutton(plotF)
+Radiobutton3.place(relx=0.15,rely=0.04,height=21,relwidth=0.12)
+Radiobutton3.configure(justify=tk.LEFT)
+Radiobutton3.configure(text='MPSAS')
+Radiobutton3.configure(variable=typeVar)
+Radiobutton3.configure(value=0)
+Radiobutton3.configure(command=plot)
+
+Radiobutton4=tk.Radiobutton(plotF)
+Radiobutton4.place(relx=0.3,rely=0.04,height=21,relwidth=0.12)
+Radiobutton4.configure(justify=tk.LEFT)
+Radiobutton4.configure(text='NELM')
+Radiobutton4.configure(variable=typeVar)
+Radiobutton4.configure(value=1)
+Radiobutton4.configure(command=plot)
+
+Radiobutton5=tk.Radiobutton(plotF)
+Radiobutton5.place(relx=0.45,rely=0.04,height=21,relwidth=0.12)
+Radiobutton5.configure(justify=tk.LEFT)
+Radiobutton5.configure(text='TEMP')
+Radiobutton5.configure(variable=typeVar)
+Radiobutton5.configure(value=2)
+Radiobutton5.configure(command=plot)
+
+
 Button6 = tk.Button(plotF)
-Button6.place(relx=0.2, rely=0.03, height=29, width=85)
+Button6.place(relx=0.6, rely=0.03, height=29, width=85)
 Button6.configure(text='From file')
 Button6.configure(command=load)
 
 Button7 = tk.Button(plotF)
-Button7.place(relx=0.35, rely=0.03, height=29, width=103)
+Button7.place(relx=0.75, rely=0.03, height=29, width=103)
 Button7.configure(text='Save image')
 Button7.configure(command=save)
 
