@@ -11,7 +11,6 @@ Python SQM Reader for Unihedron SQM-LU or compatible. Extended version of SQM-Re
 * tkinter
 * pyserial
 * matplotlib
-* numpy (?)
 
 Run program using ``python sqm_reader_plus.py`` or ``python3 sqm_reader_plus.py``. Or, try complited files (not python required!) for Windows or Linux.
 
