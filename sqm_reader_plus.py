@@ -54,17 +54,32 @@ def read1(block=True):
     timeVar.set(t)
 
     if saveVar.get():
-        name=pathVar.get()+'sqm_'+time.strftime('%Y_%m_%d')+'.dat'
-        #not create new file after midnight
-        if time.localtime().tm_hour<12 and not midnightVar.get():
-            if os.path.isfile(pathVar.get()+'sqm_'+time.strftime('%Y_%m_%d',time.localtime(time.time()-86400))+'.dat'):
-                name=pathVar.get()+'sqm_'+time.strftime('%Y_%m_%d',time.localtime(time.time()-86400))+'.dat'
-        if os.path.isfile(name): f=open(name,'a')
+        if uniVar.get():
+            name=pathVar.get()+'sqm_'+time.strftime('%Y_%m_%d')+'.csv'
+            #not create new file after midnight
+            if time.localtime().tm_hour<12 and not midnightVar.get():
+                if os.path.isfile(pathVar.get()+'sqm_'+time.strftime('%Y_%m_%d',time.localtime(time.time()-86400))+'.csv'):
+                    name=pathVar.get()+'sqm_'+time.strftime('%Y_%m_%d',time.localtime(time.time()-86400))+'.csv'
+            if os.path.isfile(name): f=open(name,'a')
+            else:
+                f=open(name,'w')
+                f.write('Date/Time,MPSAS,NELM,SerialNo,Protocol,Model,Feature,Temp(C)\n')
+            tt=time.strftime('%d.%m.%Y %H:%M:%S',time.localtime(t0))
+            f.write('%s,%5.2f,%5.2f,00000001,00000004,00000003,00000028,%4.1f\n' %(tt,mpsas,nelm,temp))
+            
+            f.close()        
         else:
-            f=open(name,'w')
-            f.write('Date Time MPSAS NELM Temp(C)\n')
-        f.write('%s %5.2f %5.2f %4.1f\n' %(t,mpsas,nelm,temp))
-        f.close()
+            name=pathVar.get()+'sqm_'+time.strftime('%Y_%m_%d')+'.dat'
+            #not create new file after midnight
+            if time.localtime().tm_hour<12 and not midnightVar.get():
+                if os.path.isfile(pathVar.get()+'sqm_'+time.strftime('%Y_%m_%d',time.localtime(time.time()-86400))+'.dat'):
+                    name=pathVar.get()+'sqm_'+time.strftime('%Y_%m_%d',time.localtime(time.time()-86400))+'.dat'
+            if os.path.isfile(name): f=open(name,'a')
+            else:
+                f=open(name,'w')
+                f.write('Date Time MPSAS NELM Temp(C)\n')
+            f.write('%s %5.2f %5.2f %4.1f\n' %(t,mpsas,nelm,temp))
+            f.close()
     if block:  #unblock buttons for 1 reading
         Button1.configure(state=tk.NORMAL)
         Button2.configure(state=tk.NORMAL)
@@ -152,6 +167,7 @@ def close():
     f.write(str(dtVar.get())+'\n')
     f.write(str(midnightVar.get())+'\n')
     f.write(str(liveVar.get())+'\n')
+    f.write(str(uniVar.get())+'\n')
     f.close()
     root.destroy()
     root=None
@@ -199,7 +215,7 @@ def load():
     '''load SQM data from file and plot'''
     global dt, sqm1, sqm2, sqm3
     
-    name=filedialog.askopenfilename(parent=root,filetypes=[('Data files','*.dat'),('Text files','*.txt'),('All files','*.*')],title='Load SQM data',initialdir=pathVar.get())
+    name=filedialog.askopenfilename(parent=root,filetypes=[('Data files','*.dat'),('Text files','*.txt'),('CSV files','*.csv'),('All files','*.*')],title='Load SQM data',initialdir=pathVar.get())
     
     if len(name)>0:
         dt=[]
@@ -207,16 +223,30 @@ def load():
         sqm2=[]
         sqm3=[]
         f=open(name,'r')
-        for l in f:
-            try: float(l[0])
-            except ValueError: continue
-            
-            dat=l.strip().split()
-            dt.append(dat[0]+' '+dat[1])
-            sqm1.append(float(dat[2]))
-            sqm2.append(float(dat[3]))
-            sqm3.append(float(dat[4]))
-            
+        lines=f.readlines()
+        f.close() 
+        if 'SerialNo' in lines[0]:
+            #unihedron CSV
+            for l in lines:
+                try: float(l[0])
+                except ValueError: continue
+                
+                dat=l.strip().split(',')
+                x=datetime.datetime.strptime(dat[0],'%d.%m.%Y %H:%M:%S')
+                dt.append(datetime.datetime.strftime(x,'%Y-%m-%d %H:%M:%S'))
+                sqm1.append(float(dat[1]))
+                sqm2.append(float(dat[2]))
+                sqm3.append(float(dat[-1]))            
+        else:
+            for l in lines:
+                try: float(l[0])
+                except ValueError: continue
+                
+                dat=l.strip().split()
+                dt.append(dat[0]+' '+dat[1])
+                sqm1.append(float(dat[2]))
+                sqm2.append(float(dat[3]))
+                sqm3.append(float(dat[4]))           
         plot()
     
 def liveCh():
@@ -261,6 +291,7 @@ baudVar=tk.IntVar(root)
 dtVar=tk.DoubleVar(root)
 pathVar=tk.StringVar(root)
 saveVar=tk.BooleanVar(root)
+uniVar=tk.BooleanVar(root)
 midnightVar=tk.BooleanVar(root)
 mpsasVar=tk.DoubleVar(root)
 nelmVar=tk.DoubleVar(root)
@@ -306,14 +337,21 @@ Button1.configure(width=127)
 Button1.configure(command=init)
 
 Checkbutton1=tk.Checkbutton(main)
-Checkbutton1.place(relx=0.04,rely=0.21,relheight=0.06,relwidth=0.4)
+Checkbutton1.place(relx=0.04,rely=0.21,relheight=0.06,relwidth=0.3)
 Checkbutton1.configure(justify=tk.LEFT)
 Checkbutton1.configure(variable=saveVar)
 Checkbutton1.configure(text='Save to file')
 Checkbutton1.configure(anchor='w')
 
+Checkbutton3=tk.Checkbutton(main)
+Checkbutton3.place(relx=0.3,rely=0.21,relheight=0.06,relwidth=0.3)
+Checkbutton3.configure(justify=tk.LEFT)
+Checkbutton3.configure(variable=uniVar)
+Checkbutton3.configure(text='Unihedron CSV')
+Checkbutton3.configure(anchor='w')
+
 Checkbutton2=tk.Checkbutton(main)
-Checkbutton2.place(relx=0.5,rely=0.21,relheight=0.06,relwidth=0.5)
+Checkbutton2.place(relx=0.6,rely=0.21,relheight=0.06,relwidth=0.5)
 Checkbutton2.configure(justify=tk.LEFT)
 Checkbutton2.configure(variable=midnightVar)
 Checkbutton2.configure(text='New file after midnight')
@@ -422,6 +460,8 @@ if os.path.isfile('sqm_config.txt'):
         if len(lines)>6: liveVar.set(lines[6].strip()=='True')
         else: liveVar.set(False)       #old version of config file
     else: midnightVar.set(True)       #old version of config file
+    if len(lines)>7: uniVar.set(lines[7].strip()=='True')
+    else: uniVar.set(False)       #old version of config file
 else:
     saveVar.set(0)
     baudVar.set(115200)
