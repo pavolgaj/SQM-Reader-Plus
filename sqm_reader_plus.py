@@ -248,6 +248,45 @@ def load():
                 sqm2.append(float(dat[3]))
                 sqm3.append(float(dat[4]))           
         plot()
+        
+def convert():
+    '''convert SQM data file (unihedron CSV <-> SQM Reader DAT)'''
+    global dt, sqm1, sqm2, sqm3
+    
+    name=filedialog.askopenfilename(parent=root,filetypes=[('Data files','*.dat'),('Text files','*.txt'),('CSV files','*.csv'),('All files','*.*')],title='Load SQM data',initialdir=pathVar.get())
+    
+    if len(name)>0:
+        f=open(name,'r')
+        lines=f.readlines()
+        f.close() 
+        if 'SerialNo' in lines[0]:
+            #unihedron CSV
+            f=open(name[:name.rfind('.')]+'-converted.dat','w')
+            f.write('Date Time MPSAS NELM Temp(C)\n')            
+            for l in lines:
+                try: float(l[0])
+                except ValueError: continue
+                
+                dat=l.strip().split(',')
+                x=datetime.datetime.strptime(dat[0],'%d.%m.%Y %H:%M:%S')
+                t=datetime.datetime.strftime(x,'%Y-%m-%d %H:%M:%S')                
+                f.write('%s %5.2f %5.2f %4.1f\n' %(t,float(dat[1]),float(dat[2]),float(dat[-1])))
+            f.close()   
+            messagebox.showinfo('SQM Reader Convert','File converted to SQM Reader DAT!')       
+        else:
+            f=open(name[:name.rfind('.')]+'-converted.csv','w')
+            f.write('Date/Time,MPSAS,NELM,SerialNo,Protocol,Model,Feature,Temp(C)\n')
+            for l in lines:
+                try: float(l[0])
+                except ValueError: continue
+                
+                dat=l.strip().split()
+                dt=dat[0]+' '+dat[1]
+                x=datetime.datetime.strptime(dt,'%Y-%m-%d %H:%M:%S')
+                t=datetime.datetime.strftime(x,'%d.%m.%Y %H:%M:%S')  
+                f.write('%s,%5.2f,%5.2f,00000001,00000004,00000003,00000028,%4.1f\n' %(t,float(dat[2]),float(dat[3]),float(dat[4])))
+            f.close() 
+            messagebox.showinfo('SQM Reader Convert','File converted to Unihedron CSV!') 
     
 def liveCh():
     '''turn off live plot'''
@@ -494,7 +533,7 @@ Radiobutton3.configure(value=0)
 Radiobutton3.configure(command=plot)
 
 Radiobutton4=tk.Radiobutton(plotF)
-Radiobutton4.place(relx=0.3,rely=0.04,height=21,relwidth=0.12)
+Radiobutton4.place(relx=0.28,rely=0.04,height=21,relwidth=0.12)
 Radiobutton4.configure(justify=tk.LEFT)
 Radiobutton4.configure(text='NELM')
 Radiobutton4.configure(variable=typeVar)
@@ -502,7 +541,7 @@ Radiobutton4.configure(value=1)
 Radiobutton4.configure(command=plot)
 
 Radiobutton5=tk.Radiobutton(plotF)
-Radiobutton5.place(relx=0.45,rely=0.04,height=21,relwidth=0.12)
+Radiobutton5.place(relx=0.41,rely=0.04,height=21,relwidth=0.12)
 Radiobutton5.configure(justify=tk.LEFT)
 Radiobutton5.configure(text='TEMP')
 Radiobutton5.configure(variable=typeVar)
@@ -511,14 +550,19 @@ Radiobutton5.configure(command=plot)
 
 
 Button6 = tk.Button(plotF)
-Button6.place(relx=0.6, rely=0.03, height=29, width=85)
+Button6.place(relx=0.55, rely=0.03, height=29, width=85)
 Button6.configure(text='From file')
 Button6.configure(command=load)
 
 Button7 = tk.Button(plotF)
-Button7.place(relx=0.75, rely=0.03, height=29, width=103)
+Button7.place(relx=0.7, rely=0.03, height=29, width=85)
 Button7.configure(text='Save image')
 Button7.configure(command=save)
+
+Button8 = tk.Button(plotF)
+Button8.place(relx=0.85, rely=0.03, height=29, width=85)
+Button8.configure(text='Convert file')
+Button8.configure(command=convert)
 
 
 frame2=tk.Frame(plotF)
