@@ -66,8 +66,8 @@ def read1(block=True):
                 f.write('Date/Time,MPSAS,NELM,SerialNo,Protocol,Model,Feature,Temp(C)\n')
             tt=time.strftime('%d.%m.%Y %H:%M:%S',time.localtime(t0))
             f.write('%s,%5.2f,%5.2f,00000001,00000004,00000003,00000028,%4.1f\n' %(tt,mpsas,nelm,temp))
-            
-            f.close()        
+
+            f.close()
         else:
             name=pathVar.get()+'sqm_'+time.strftime('%Y_%m_%d')+'.dat'
             #not create new file after midnight
@@ -84,14 +84,14 @@ def read1(block=True):
         Button1.configure(state=tk.NORMAL)
         Button2.configure(state=tk.NORMAL)
         Button3.configure(state=tk.NORMAL)
-        
-    if liveVar.get(): 
+
+    if liveVar.get():
         dt.append(t)
         sqm1.append(mpsas)
         sqm2.append(nelm)
         sqm3.append(temp)
         plot()
-        
+
     return t0
 
 async def read_loop():
@@ -182,8 +182,8 @@ def show():
         Button5.configure(text='<<')
         root.geometry(size1)
     expanded=(not expanded)
- 
- 
+
+
 def plot():
     '''plot SQM data'''
     if len(dt)==0: return
@@ -191,8 +191,8 @@ def plot():
     figSQM.clf()
     ax=figSQM.add_subplot(111)
     figSQM.tight_layout()
-    
-    dtime=[datetime.datetime.strptime(x,'%Y-%m-%d %H:%M:%S') for x in dt] 
+
+    dtime=[datetime.datetime.strptime(x,'%Y-%m-%d %H:%M:%S') for x in dt]
     fds=dates.date2num(dtime)
     hfmt=dates.DateFormatter('%H:%M')
     if typeVar.get()==0:
@@ -207,16 +207,16 @@ def plot():
         ax.plot(fds,sqm3,'bo-')
         ax.set_ylabel('TEMP')
     ax.xaxis.set_major_locator(dates.AutoDateLocator())
-    ax.xaxis.set_major_formatter(hfmt)    
+    ax.xaxis.set_major_formatter(hfmt)
     figSQM.tight_layout()
     canvas2.draw()
 
 def load():
     '''load SQM data from file and plot'''
     global dt, sqm1, sqm2, sqm3
-    
+
     name=filedialog.askopenfilename(parent=root,filetypes=[('Data files','*.dat'),('Text files','*.txt'),('CSV files','*.csv'),('All files','*.*')],title='Load SQM data',initialdir=pathVar.get())
-    
+
     if len(name)>0:
         dt=[]
         sqm1=[]
@@ -224,74 +224,72 @@ def load():
         sqm3=[]
         f=open(name,'r')
         lines=f.readlines()
-        f.close() 
+        f.close()
         if 'SerialNo' in lines[0]:
             #unihedron CSV
             for l in lines:
                 try: float(l[0])
                 except ValueError: continue
-                
+
                 dat=l.strip().split(',')
                 x=datetime.datetime.strptime(dat[0],'%d.%m.%Y %H:%M:%S')
                 dt.append(datetime.datetime.strftime(x,'%Y-%m-%d %H:%M:%S'))
                 sqm1.append(float(dat[1]))
                 sqm2.append(float(dat[2]))
-                sqm3.append(float(dat[-1]))            
+                sqm3.append(float(dat[-1]))
         else:
             for l in lines:
                 try: float(l[0])
                 except ValueError: continue
-                
+
                 dat=l.strip().split()
                 dt.append(dat[0]+' '+dat[1])
                 sqm1.append(float(dat[2]))
                 sqm2.append(float(dat[3]))
-                sqm3.append(float(dat[4]))           
+                sqm3.append(float(dat[4]))
         plot()
-        
+
 def convert():
     '''convert SQM data file (unihedron CSV <-> SQM Reader DAT)'''
-    global dt, sqm1, sqm2, sqm3
-    
     name=filedialog.askopenfilename(parent=root,filetypes=[('Data files','*.dat'),('Text files','*.txt'),('CSV files','*.csv'),('All files','*.*')],title='Load SQM data',initialdir=pathVar.get())
-    
+
     if len(name)>0:
         f=open(name,'r')
         lines=f.readlines()
-        f.close() 
+        f.close()
         if 'SerialNo' in lines[0]:
             #unihedron CSV
             f=open(name[:name.rfind('.')]+'-converted.dat','w')
-            f.write('Date Time MPSAS NELM Temp(C)\n')            
+            f.write('Date Time MPSAS NELM Temp(C)\n')
             for l in lines:
                 try: float(l[0])
                 except ValueError: continue
-                
+
                 dat=l.strip().split(',')
                 x=datetime.datetime.strptime(dat[0],'%d.%m.%Y %H:%M:%S')
-                t=datetime.datetime.strftime(x,'%Y-%m-%d %H:%M:%S')                
+                t=datetime.datetime.strftime(x,'%Y-%m-%d %H:%M:%S')
                 f.write('%s %5.2f %5.2f %4.1f\n' %(t,float(dat[1]),float(dat[2]),float(dat[-1])))
-            f.close()   
-            messagebox.showinfo('SQM Reader Convert','File converted to SQM Reader DAT!')       
+            f.close()
+            messagebox.showinfo('SQM Reader Convert','File converted to SQM Reader DAT!')
         else:
             f=open(name[:name.rfind('.')]+'-converted.csv','w')
             f.write('Date/Time,MPSAS,NELM,SerialNo,Protocol,Model,Feature,Temp(C)\n')
             for l in lines:
                 try: float(l[0])
                 except ValueError: continue
-                
+
                 dat=l.strip().split()
                 dt=dat[0]+' '+dat[1]
                 x=datetime.datetime.strptime(dt,'%Y-%m-%d %H:%M:%S')
-                t=datetime.datetime.strftime(x,'%d.%m.%Y %H:%M:%S')  
+                t=datetime.datetime.strftime(x,'%d.%m.%Y %H:%M:%S')
                 f.write('%s,%5.2f,%5.2f,00000001,00000004,00000003,00000028,%4.1f\n' %(t,float(dat[2]),float(dat[3]),float(dat[4])))
-            f.close() 
-            messagebox.showinfo('SQM Reader Convert','File converted to Unihedron CSV!') 
-    
+            f.close()
+            messagebox.showinfo('SQM Reader Convert','File converted to Unihedron CSV!')
+
 def liveCh():
     '''turn off live plot'''
     global dt, sqm1, sqm2, sqm3
-    if not liveVar.get(): 
+    if not liveVar.get():
         dt=[]
         sqm1=[]
         sqm2=[]
@@ -302,7 +300,7 @@ def save():
     name=filedialog.asksaveasfilename(parent=root,filetypes=[('PNG file','.png'),
     ('JPG file','.jpg .jpeg'),('EPS/PS file','.eps .ps'),('PDF file','.pdf'),('SVG file','.svg'),('TIFF file','.tif .tiff'),
     ('All images','.eps .ps .jpeg .jpg .pdf .png .svg .tif .tiff'),('All files','*')],title='Save image',defaultextension='.png',initialdir=pathVar.get())
-    
+
     if len(name)>0:
         figSQM.savefig(name,dpi=300)
 
@@ -494,7 +492,7 @@ if os.path.isfile('sqm_config.txt'):
     else: pathVar.set('./')
     saveVar.set(lines[3].strip()=='True')
     dtVar.set(float(lines[4]))
-    if len(lines)>5: 
+    if len(lines)>5:
         midnightVar.set(lines[5].strip()=='True')
         if len(lines)>6: liveVar.set(lines[6].strip()=='True')
         else: liveVar.set(False)       #old version of config file
